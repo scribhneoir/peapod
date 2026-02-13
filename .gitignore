@@ -1,2 +1,3 @@
 dist/**
 !dist/DIST.md
+.DS_Store
