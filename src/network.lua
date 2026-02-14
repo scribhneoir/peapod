@@ -82,6 +82,8 @@ function worker.new(url, callback, filepath)
 end
 
 Network = {}
+--todo: check if playdate.network.getStatus() == playdate.network.kStatusConnected. Otherwise, the app should run in offline mode.
+
 
 local network_permission = false
 local fetchQueue = {}

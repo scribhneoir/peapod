@@ -5,12 +5,12 @@ import 'CoreLibs/nineslice'
 import 'CoreLibs/graphics'
 
 import "network"
-import "ui"
+import "ui/ui"
 import "sound"
-import "file"
+import "handler/file"
 import "xml"
 
-local network  <const> = Network
+local network <const> = Network
 local ui <const> = UI
 
 -- setup
@@ -24,12 +24,17 @@ playdate.display.setRefreshRate(0) -- uncapped framerate
 --     local items = ParseXML(dat)
 --     print(items)
 -- end
+local lastFrameTime = playdate.getCurrentTimeMilliseconds()
+DeltaTime = 0
 
 function playdate.update()
     playdate.graphics.clear()
-
     playdate.timer.updateTimers()
 
+    -- global delta time calculation
+    local currentFrameTime = playdate.getCurrentTimeMilliseconds()
+    DeltaTime = (currentFrameTime - lastFrameTime) / 1000
+    lastFrameTime = currentFrameTime
 
     network.update()
     ui.update()

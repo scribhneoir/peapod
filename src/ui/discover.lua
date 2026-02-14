@@ -44,10 +44,10 @@ local function parseDiscoverData(fileHandle)
         local title = value.trackName
         local artworkUrl = value.artworkUrl60
         local strippedTitle = stripString(title)
-        if not file.exists("discover/artwork/" .. strippedTitle .. ".pdi") then
+        if not file.exists("cache/artwork/" .. strippedTitle .. ".pdi") then
             print("Fetching artwork for:", strippedTitle)
             Network.fetch("https://pdi-image-converter.scribhneoir.workers.dev/?url=" .. artworkUrl, function(file)
-            end, "discover/artwork/" .. strippedTitle .. ".pdi")
+            end, "cache/artwork/" .. strippedTitle .. ".pdi")
         end
         titles[#titles + 1] = title
     end
@@ -55,13 +55,13 @@ local function parseDiscoverData(fileHandle)
 end
 
 local function fetchDiscoverData()
-    if file.exists("discover/search_" .. searchTerm .. ".json") then
-        parseDiscoverData(File.new("discover/search_" .. searchTerm .. ".json"))
+    if file.exists("cache/search/" .. searchTerm .. ".json") then --todo: check if cached file modtime is recent enough
+        parseDiscoverData(File.new("cache/search/" .. searchTerm .. ".json"))
     else
         Network.fetch("https://itunes.apple.com/search?media=podcast&term=" .. searchTerm:gsub(" ", "+") .. "&limit=" ..
             NUMBER_OF_RESULTS, function(file)
                 parseDiscoverData(file)
-            end, "discover/search_" .. searchTerm .. ".json")
+            end, "cache/search/" .. searchTerm .. ".json")
     end
     queuedFetch = true
 end
@@ -91,9 +91,9 @@ function listview:drawCell(_, row, _, selected, x, y, width, height)
         if image then
             gfx.setImageDrawMode(gfx.kDrawModeCopy)
             image:draw(x + 5, y + 5)
-        elseif file.exists("discover/artwork/" .. strippedTitle .. ".pdi") then
+        elseif file.exists("cache/artwork/" .. strippedTitle .. ".pdi") then
             gfx.setImageDrawMode(gfx.kDrawModeCopy)
-            local image = gfx.image.new("discover/artwork/" .. strippedTitle .. ".pdi")
+            local image = gfx.image.new("cache/artwork/" .. strippedTitle .. ".pdi")
             assert(image, "Failed to load image for " .. title)
             image:setMaskImage(maskImage)
             imagesInMemory[row] = image
@@ -206,14 +206,11 @@ local search = {
 }
 local searchIndex = 1
 local searchState = "search"
-local lastFrameTime = playdate.getCurrentTimeMilliseconds()
+
 local targetFPS = 12
 
 local function drawSearch()
-    local currentFrameTime = playdate.getCurrentTimeMilliseconds()
-    local deltaTime = (currentFrameTime - lastFrameTime) / 1000
-    lastFrameTime = currentFrameTime
-    local framesToAdvance = targetFPS * deltaTime
+    local framesToAdvance = targetFPS * DeltaTime
     if not fetched then
         if searchState == "search" then
             searchState = "into_fetch"
