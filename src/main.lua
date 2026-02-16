@@ -8,7 +8,7 @@ import "network"
 import "ui/ui"
 import "sound"
 import "handler/file"
-import "xml"
+import "handler/xml"
 
 local network <const> = Network
 local ui <const> = UI

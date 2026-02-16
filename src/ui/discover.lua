@@ -18,7 +18,6 @@ end
 
 local function parseSubtitle(title)
     local separatorIndex = string.find(title, "%-") or string.find(title, ":")
-    print("Separator index:", separatorIndex)
     if separatorIndex then
         return string.sub(title, 1, separatorIndex - 1):gsub("%s+$", ""),
             string.sub(title, separatorIndex + 1):gsub("^%s+", "")
@@ -165,7 +164,8 @@ function playdate.AButtonUp()
     end
     local selectedRow = listview:getSelectedRow()
     if titles[selectedRow] then
-        Discover.switchScene("EPISODES", { title = titles[selectedRow], feedUrl = feedUrls[selectedRow] })
+        Discover.switchScene("EPISODES",
+            { title = titles[selectedRow], subtitle = subtitles[selectedRow], feedUrl = feedUrls[selectedRow] })
     elseif selectedRow == 0 then
         oldTerm = searchTerm
         searchTerm = ""

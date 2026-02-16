@@ -75,6 +75,7 @@ end
 --- Recursively removes redundant vectors for nodes
 -- with single child elements
 function tree:reduce(node, key, parent)
+    -- coroutine.yield()
     for k, v in pairs(node) do
         if type(v) == 'table' then
             self:reduce(v, k, node)

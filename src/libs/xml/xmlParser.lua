@@ -287,6 +287,7 @@ end
 -- Need check for embedded '>' in attribute value and extend
 -- match recursively if necessary eg. <tag attr="123>456">
 local function parseNormalTag(self, xml, f)
+    coroutine.yield()
     --Check for errors
     while 1 do
         --If there isn't an attribute without closing quotes (single or double quotes)

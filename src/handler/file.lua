@@ -32,14 +32,17 @@ function File:finishDownload()
     file.rename(self.filepath .. "_temp", self.filepath)
 end
 
-function File:read()
+function File:read(size, offset)
     if string.find(self.filepath, ".json") then
         return json.decodeFile(self.filepath)
     end
 
     local fileHandle = file.open(self.filepath, file.kFileRead)
     assert(fileHandle, "Failed to open file for reading: " .. self.filepath)
-    local size = file.getSize(self.filepath)
+    local size = size or file.getSize(self.filepath)
+    if offset then
+        fileHandle:seek(offset, playdate.file.kSeekSet)
+    end
     local data = fileHandle:read(size)
     fileHandle:close()
     return data
