@@ -13,6 +13,8 @@ local MAX_WORKERS = 2
 local activeWorkers = {}
 
 local worker = {}
+-- TODO: handle retry logic for failed fetches
+-- TODO: handle canceling fetches
 
 function worker:handleHeaders()
     -- local headers = self.connection:getResponseHeaders()
@@ -36,6 +38,7 @@ end
 
 function worker:handleCallback()
     self.file:finishDownload()
+    -- TODO: check file completeness
     if self.callback then
         self.callback(self.file)
     end
