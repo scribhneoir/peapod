@@ -1,9 +1,11 @@
 local file <const> = playdate.file
 local gfx <const> = playdate.graphics
 local keyboard <const> = playdate.keyboard
-Discover = {}
+Discover = {
+    switchScene = nil, -- set in ui.lua
+}
 
-local function stripString(str)
+function StripString(str)
     local stripped = str:gsub("%s+", "_")
     stripped:gsub("[^%w_]", "")
     stripped:gsub("æ", "ae")
@@ -14,6 +16,16 @@ local function stripString(str)
     return stripped
 end
 
+local function parseSubtitle(title)
+    local separatorIndex = string.find(title, "%-") or string.find(title, ":")
+    print("Separator index:", separatorIndex)
+    if separatorIndex then
+        return string.sub(title, 1, separatorIndex - 1):gsub("%s+$", ""),
+            string.sub(title, separatorIndex + 1):gsub("^%s+", "")
+    else
+        return title, ""
+    end
+end
 
 local maskImage <const> = gfx.image.new(60, 60, gfx.kColorBlack)
 gfx.lockFocus(maskImage)
@@ -24,6 +36,8 @@ gfx.unlockFocus()
 
 local imagesInMemory = {}
 local titles = {}
+local subtitles = {}
+local feedUrls = {}
 local searchTerm = "into the aether";
 local oldTerm = nil
 local fetched = false
@@ -32,7 +46,6 @@ local queuedFetch = false
 local NUMBER_OF_RESULTS = 10
 
 local function parseDiscoverData(fileHandle)
-    -- print("Fetched discover data:")
     local data = fileHandle:read()
     if (not data) then
         print("Failed to read discover data")
@@ -40,16 +53,19 @@ local function parseDiscoverData(fileHandle)
         queuedFetch = false
         return
     end
-    for key, value in pairs(data.results) do
-        local title = value.trackName
+    for _, value in pairs(data.results) do
+        local title, subtitle = parseSubtitle(value.trackName)
         local artworkUrl = value.artworkUrl60
-        local strippedTitle = stripString(title)
+        local feedUrl = value.feedUrl
+        local strippedTitle = StripString(title)
         if not file.exists("cache/artwork/" .. strippedTitle .. ".pdi") then
             print("Fetching artwork for:", strippedTitle)
             Network.fetch("https://pdi-image-converter.scribhneoir.workers.dev/?url=" .. artworkUrl, function(file)
             end, "cache/artwork/" .. strippedTitle .. ".pdi")
         end
         titles[#titles + 1] = title
+        subtitles[#subtitles + 1] = subtitle
+        feedUrls[#feedUrls + 1] = feedUrl
     end
     fetched = true
 end
@@ -66,6 +82,7 @@ local function fetchDiscoverData()
     queuedFetch = true
 end
 
+local subfont = gfx.font.new('assets/fonts/Nontendo/Nontendo-Light')
 local titleFont = gfx.font.new('assets/fonts/Quickboot/Quickboot')
 titleFont:setTracking(8)
 
@@ -76,7 +93,8 @@ listview:setCellPadding(5, 5, 2, 2)
 function listview:drawCell(_, row, _, selected, x, y, width, height)
     if titles[row] then
         local title = titles[row]
-        local strippedTitle = stripString(title)
+        local subtitle = subtitles[row]
+        local strippedTitle = StripString(title)
         if selected then
             gfx.setColor(gfx.kColorBlack)
             gfx.fillRoundRect(x, y, width, height, 4)
@@ -86,7 +104,13 @@ function listview:drawCell(_, row, _, selected, x, y, width, height)
             gfx.setImageDrawMode(gfx.kDrawModeCopy)
         end
         gfx.setFont(titleFont)
-        gfx.drawTextInRect(title, x + 70, y + 6, width - 75, 32, nil, "...", kTextAlignment.left)
+        if subtitle and subtitle ~= "" then
+            gfx.drawTextInRect(title, x + 70, y + 6, width - 75, 16, nil, "...", kTextAlignment.left)
+            gfx.setFont(subfont)
+            gfx.drawTextInRect(subtitle, x + 70, y + 23, width - 75, 20, nil, "...", kTextAlignment.left)
+        else
+            gfx.drawTextInRect(title, x + 70, y + 6, width - 75, 32, nil, "...", kTextAlignment.left)
+        end
         local image = imagesInMemory[row]
         if image then
             gfx.setImageDrawMode(gfx.kDrawModeCopy)
@@ -141,7 +165,7 @@ function playdate.AButtonUp()
     end
     local selectedRow = listview:getSelectedRow()
     if titles[selectedRow] then
-        print("Selected:", titles[selectedRow])
+        Discover.switchScene("EPISODES", { title = titles[selectedRow], feedUrl = feedUrls[selectedRow] })
     elseif selectedRow == 0 then
         oldTerm = searchTerm
         searchTerm = ""
@@ -257,6 +281,10 @@ local function renderData()
     gfx.drawTextInRect(safeSearchTerm, 30, 10, 380, 16, nil, "...", kTextAlignment.left)
     gfx.setImageDrawMode(gfx.kDrawModeFillBlack)
     listview:drawInRect(0, 32, 400, 208)
+end
+
+function Discover.init(args)
+    print("Discover scene initialized with args:", args)
 end
 
 function Discover.update()
