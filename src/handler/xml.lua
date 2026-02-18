@@ -2,8 +2,8 @@
 -- then convert to table and call callback
 local file <const> = playdate.file
 
-local xml2lua = import "libs/xml/xml2lua"
-local xmlTree = import "libs/xml/xmlTree"
+local xml2lua = import "../libs/xml/xml2lua"
+local xmlTree = import "../libs/xml/xmlTree"
 
 Xml = {
     offset = 0,
@@ -11,13 +11,17 @@ Xml = {
     itemCount = 0,
 }
 
-local CHUNK_SIZE = 1024
+local CHUNK_SIZE = 512
+
+local parsing = false
+local tree
+local parser
 
 local function parse(data)
-    local tree = xmlTree:new()
-    local parser = xml2lua.parser(tree)
+    parsing = true
+    tree = xmlTree:new()
+    parser = xml2lua.parser(tree)
     parser:parse(data)
-    return tree.root
 end
 
 function Xml.new(filepath, tag, callback, max)
@@ -28,6 +32,7 @@ function Xml.new(filepath, tag, callback, max)
         self.callback = callback
         self.maxItems = max or 1
         self.tag = tag or "item"
+        self.tagPattern = "<" .. self.tag .. ">(.-)</" .. self.tag .. ">"
     else
         print("File does not exist: " .. filepath)
     end
@@ -35,7 +40,18 @@ function Xml.new(filepath, tag, callback, max)
 end
 
 function Xml:update()
-    if not self.fileHandle then return end
+    if parsing then
+        local done = parser:update()
+        if done then
+            parsing = false
+            self.callback(tree.root[self.tag])
+            self.itemCount = self.itemCount + 1
+        end
+        return
+    end
+    if not self.fileHandle then
+        return
+    end
     if self.itemCount >= self.maxItems then
         self:close()
         return
@@ -45,13 +61,11 @@ function Xml:update()
     if chunk then
         self.buffer = self.buffer .. chunk
         self.offset = self.offset + CHUNK_SIZE
-        local itemStart, itemEnd = string.find(self.buffer, "<" .. self.tag .. ">(.-)</" .. self.tag .. ">")
+        local itemStart, itemEnd = string.find(self.buffer, self.tagPattern)
         if itemStart and itemEnd then
             local itemXml = string.sub(self.buffer, itemStart, itemEnd)
             self.buffer = string.sub(self.buffer, itemEnd + 1)
             local parsedItem = parse(itemXml)
-            self.callback(parsedItem[self.tag])
-            self.itemCount = self.itemCount + 1
         end
     end
 end
@@ -63,9 +77,11 @@ function Xml:close()
     end
 end
 
-function Xml:addItemCount(count)
-    self.maxItems = self.maxItems + count
-    if not self.fileHandle then
-        self.fileHandle = file.open(self.filepath, file.kFileRead)
+function Xml:setMaxItems(max)
+    if max > self.maxItems then
+        self.maxItems = max
+        if not self.fileHandle then
+            self.fileHandle = file.open(self.filepath, file.kFileRead)
+        end
     end
 end

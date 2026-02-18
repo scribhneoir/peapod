@@ -287,7 +287,6 @@ end
 -- Need check for embedded '>' in attribute value and extend
 -- match recursively if necessary eg. <tag attr="123>456">
 local function parseNormalTag(self, xml, f)
-    coroutine.yield()
     --Check for errors
     while 1 do
         --If there isn't an attribute without closing quotes (single or double quotes)
@@ -385,11 +384,14 @@ local function getNextTag(self, xml, f)
     return f.endMatch ~= nil
 end
 
+local f
+local xml
+
 --Main function which starts the XML parsing process
 --@param xml the XML string to parse
 --@param parseAttributes indicates if tag attributes should be parsed or not.
 --       If omitted, the default value is true.
-function XmlParser:parse(xml, parseAttributes)
+function XmlParser:parse(xmlData, parseAttributes)
     if type(self) ~= "table" or getmetatable(self) ~= XmlParser then
         error("You must call xmlparser:parse(parameters) instead of xmlparser.parse(parameters)")
     end
@@ -402,7 +404,7 @@ function XmlParser:parse(xml, parseAttributes)
 
     --Stores string.find results and parameters
     --and other auxiliar variables
-    local f = {
+    f = {
         --string.find return
         match = 0,
         endMatch = 0,
@@ -413,10 +415,13 @@ function XmlParser:parse(xml, parseAttributes)
         -- startText, endText,
         -- errStart, errEnd, extStart, extEnd,
     }
+    xml = xmlData
+end
 
-    while f.match do
+function XmlParser:update()
+    if f.match then
         if not getNextTag(self, xml, f) then
-            break
+            return false
         end
 
         -- Handle leading text
@@ -430,6 +435,8 @@ function XmlParser:parse(xml, parseAttributes)
 
         parseTagType(self, xml, f)
         f.pos = f.endMatch + 1
+    else
+        return true
     end
 end
 

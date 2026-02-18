@@ -114,7 +114,6 @@ function Network.update()
 end
 
 function Network.fetch(url, callback, filepath, priority)
-    print("Queueing fetch for:", url)
     priority = priority or 1
     local index = #fetchQueue + 1
     for i, item in ipairs(fetchQueue) do

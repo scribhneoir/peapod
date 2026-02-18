@@ -15,13 +15,21 @@ local scenes <const> = {
     -- SETTINGS = "SETTINGS",
 }
 
-local currentScene = scenes.DISCOVER
+local currentScene = scenes.EPISODES
+currentScene.init({
+    title = "Into the Aether",
+    subtitle = "A lowkey videogame podcast",
+    feedUrl =
+    "https://feeds.simplecast.com/54nAGcIl"
+})
 local nextScene = nil
 
 local function switchScene(scene, args)
     assert(scenes[scene], "Scene " .. scene .. " does not exist")
     nextScene = scenes[scene]
-    nextScene.init(args)
+    if nextScene.init then
+        nextScene.init(args)
+    end
 end
 
 Discover.switchScene = switchScene
@@ -34,5 +42,35 @@ function UI.update()
         --TODO: add transition logic here
         currentScene = nextScene
         nextScene = nil
+    end
+end
+
+function playdate.upButtonUp()
+    if currentScene.upButtonUp then
+        currentScene.upButtonUp()
+    end
+end
+
+function playdate.downButtonUp()
+    if currentScene.downButtonUp then
+        currentScene.downButtonUp()
+    end
+end
+
+function playdate.AButtonUp()
+    if currentScene.AButtonUp then
+        currentScene.AButtonUp()
+    end
+end
+
+function playdate.BButtonUp()
+    if currentScene.BButtonUp then
+        currentScene.BButtonUp()
+    end
+end
+
+function playdate.cranked(change, acceleratedChange)
+    if currentScene.cranked then
+        currentScene.cranked(change, acceleratedChange)
     end
 end

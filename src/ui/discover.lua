@@ -127,7 +127,6 @@ function listview:drawCell(_, row, _, selected, x, y, width, height)
     else
         gfx.drawRoundRect(x, y, width, height, 4)
     end
-    gfx.setDrawOffset(0, 0)
 end
 
 local function handleUp()
@@ -150,15 +149,15 @@ local function handleDown()
     listview:selectNextRow(false)
 end
 
-function playdate.upButtonUp()
+function Discover.upButtonUp()
     handleUp()
 end
 
-function playdate.downButtonUp()
+function Discover.downButtonUp()
     handleDown()
 end
 
-function playdate.AButtonUp()
+function Discover.AButtonUp()
     if keyboard.isVisible() then
         return
     end
@@ -178,7 +177,7 @@ end
 local clickDegrees <const> = 360 / 15
 local degreesSinceClick = 0
 
-function playdate.cranked(change, acceleratedChange)
+function Discover.cranked(change, acceleratedChange)
     degreesSinceClick += acceleratedChange
 
     local clickCount = 0
@@ -216,6 +215,8 @@ keyboard.keyboardWillHideCallback = function(ok)
         oldTerm = nil
         listview:setSelectedRow(0)
         titles = {}
+        subtitles = {}
+        feedUrls = {}
         imagesInMemory = {}
         fetched = false
         queuedFetch = false
@@ -239,48 +240,57 @@ local function drawSearch()
         if searchState == "search" then
             searchState = "into_fetch"
             searchIndex = 1
+            listview.needsDisplay = true
         elseif searchState == "into_fetch" then
             if searchIndex + framesToAdvance < #search.into_fetch then
                 searchIndex += framesToAdvance
+                listview.needsDisplay = true
             else
                 searchState = "fetch"
                 searchIndex = 1
+                listview.needsDisplay = true
             end
         elseif searchState == "fetch" then
             searchIndex = (searchIndex + framesToAdvance) % #search.fetch
+            listview.needsDisplay = true
         end
     else
         if searchState == "fetch" then
             searchState = "into_search"
             searchIndex = 1
+            listview.needsDisplay = true
         elseif searchState == "into_search" then
             if searchIndex + framesToAdvance < #search.into_search then
                 searchIndex += framesToAdvance
+                listview.needsDisplay = true
             else
                 searchState = "search"
                 searchIndex = 1
             end
         end
     end
-    local image = search[searchState][math.ceil(searchIndex)]
-    assert(image, "No image for search animation" .. searchState .. " index " .. math.ceil(searchIndex))
-    image:draw(8, 6)
 end
 
 local function renderData()
-    gfx.setImageDrawMode(gfx.kDrawModeCopy)
-    if listview:getSelectedRow() == 0 then
-        gfx.fillRoundRect(4, 4, 392, 25, 4)
-        gfx.setImageDrawMode(gfx.kDrawModeInverted)
-    else
-        gfx.drawRoundRect(4, 4, 392, 25, 4)
-    end
     drawSearch()
-    gfx.setFont(titleFont)
-    local safeSearchTerm = searchTerm or ""
-    gfx.drawTextInRect(safeSearchTerm, 30, 10, 380, 16, nil, "...", kTextAlignment.left)
-    gfx.setImageDrawMode(gfx.kDrawModeFillBlack)
-    listview:drawInRect(0, 32, 400, 208)
+    if listview.needsDisplay or keyboard.isVisible() then
+        playdate.graphics.clear()
+        gfx.setImageDrawMode(gfx.kDrawModeCopy)
+        if listview:getSelectedRow() == 0 then
+            gfx.fillRoundRect(4, 4, 392, 25, 4)
+            gfx.setImageDrawMode(gfx.kDrawModeInverted)
+        else
+            gfx.drawRoundRect(4, 4, 392, 25, 4)
+        end
+        local image = search[searchState][math.ceil(searchIndex)]
+        assert(image, "No image for search animation" .. searchState .. " index " .. math.ceil(searchIndex))
+        image:draw(8, 6)
+        gfx.setFont(titleFont)
+        local safeSearchTerm = searchTerm or ""
+        gfx.drawTextInRect(safeSearchTerm, 30, 10, 380, 16, nil, "...", kTextAlignment.left)
+        gfx.setImageDrawMode(gfx.kDrawModeFillBlack)
+        listview:drawInRect(0, 32, 400, 208)
+    end
 end
 
 function Discover.init(args)
@@ -292,4 +302,8 @@ function Discover.update()
         fetchDiscoverData()
     end
     renderData()
+end
+
+function Discover.init(args)
+    listview.needsDisplay = true
 end

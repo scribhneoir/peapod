@@ -5,10 +5,10 @@ import 'CoreLibs/nineslice'
 import 'CoreLibs/graphics'
 
 import "network"
-import "ui/ui"
-import "sound"
 import "handler/file"
 import "handler/xml"
+import "ui/ui"
+import "sound"
 
 local network <const> = Network
 local ui <const> = UI
@@ -20,7 +20,6 @@ local lastFrameTime = playdate.getCurrentTimeMilliseconds()
 DeltaTime = 0
 
 function playdate.update()
-    playdate.graphics.clear()
     playdate.timer.updateTimers()
 
     -- global delta time calculation
