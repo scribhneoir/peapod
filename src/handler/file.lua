@@ -3,23 +3,33 @@ local json <const> = json
 
 File = {}
 
-function File.new(filepath)
+local function getExtensionIndex(filename)
+    return filename:find(".([^%.]+)$")
+end
+
+function File.new(filepath, temp)
     local self = setmetatable({}, { __index = File })
     self.filepath = filepath
+    self.temp = temp or true
     local dirpath = string.match(filepath, "(.*/)")
     if dirpath and not file.isdir(dirpath) then
         file.mkdir(dirpath)
     end
-    if file.exists(filepath .. "_temp") then
-        file.delete(filepath .. "_temp")
+
+    local extIndex = getExtensionIndex(filepath)
+    local ext = extIndex and string.sub(filepath, extIndex) or ""
+    local name = string.sub(filepath, 1, extIndex and extIndex - 1 or #filepath)
+    self.tempPath = name .. "_temp" .. ext
+    if file.exists(self.tempPath) then
+        file.delete(self.tempPath)
     end
     return self
 end
 
 function File:download(data)
-    local fileHandle, err = file.open(self.filepath .. "_temp", file.kFileAppend)
+    local fileHandle, err = file.open(self.tempPath, file.kFileAppend)
     if err then
-        print("Failed to open file for writing: " .. self.filepath .. "_temp", err)
+        print("Failed to open file for writing: " .. self.tempPath, err)
         return
     end
     assert(fileHandle, "Failed to open file for writing: " .. self.filepath)
@@ -29,7 +39,7 @@ end
 
 function File:finishDownload()
     file.delete(self.filepath)
-    file.rename(self.filepath .. "_temp", self.filepath)
+    file.rename(self.tempPath, self.filepath)
 end
 
 function File:read(size, offset)

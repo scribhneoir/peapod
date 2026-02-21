@@ -121,7 +121,17 @@ function Episodes.downButtonUp()
 end
 
 function Episodes.AButtonUp()
-
+    if not episodes or not episodes[listview:getSelectedRow()] then
+        return
+    end
+    local episode = episodes[listview:getSelectedRow()]
+    local title = StripString(episode.title or "No title")
+    if episode.enclosure then
+        local url = episode.enclosure._attr.url
+        -- local url = "https://audio.transistor.fm/m/shows/11787/f5eb5f9a729a19122bce1b54a0d1ba14.mp3"
+        print(title)
+        Sound.stream(url, "cache/audio/" .. title .. ".mp3")
+    end
 end
 
 function Episodes.BButtonUp()

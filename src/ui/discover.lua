@@ -12,8 +12,7 @@ function StripString(str)
     stripped:gsub("ø", "o")
     stripped:gsub("å", "a")
     stripped:gsub(":", "")
-    stripped:lower()
-    return stripped
+    return string.lower(stripped)
 end
 
 local function parseSubtitle(title)

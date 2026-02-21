@@ -17,12 +17,17 @@ local worker = {}
 -- TODO: handle canceling fetches
 
 function worker:handleHeaders()
-    -- local headers = self.connection:getResponseHeaders()
-    -- if headers then
-    -- for key, value in pairs(headers) do
-    --     print(key .. ": " .. value)
-    -- end
-    -- end
+    print("Received headers for:", self.url)
+    local error = self.connection:getError()
+    if error then
+        print("Error fetching:", self.url, "Error code:", error)
+    end
+    local headers = self.connection:getResponseHeaders()
+    if headers then
+        for key, value in pairs(headers) do
+            print(key .. ": " .. value)
+        end
+    end
 end
 
 function worker:handleData()
@@ -60,6 +65,7 @@ function worker:kill()
 end
 
 function worker.new(url, callback, filepath)
+    print("Queueing fetch for:", url, "to be saved at:", filepath)
     local self = setmetatable({}, { __index = worker })
     self.url = url
     self.callback = callback
@@ -113,7 +119,7 @@ function Network.update()
     end
 end
 
-function Network.fetch(url, callback, filepath, priority)
+function Network.fetch(url, callback, filepath, priority, redirect)
     priority = priority or 1
     local index = #fetchQueue + 1
     for i, item in ipairs(fetchQueue) do
@@ -122,5 +128,29 @@ function Network.fetch(url, callback, filepath, priority)
             break
         end
     end
-    table.insert(fetchQueue, index, { url = url, callback = callback, filepath = filepath, priority = priority })
+    if (playdate.isSimulator and redirect) then
+        local redirectUrl = "https://redirect-stripper.scribhneoir.workers.dev/?url=" .. url
+        local host, port, secure, path = parseURL(redirectUrl)
+        local conn = net.http.new(host, port, secure)
+        conn:setRequestCompleteCallback(function()
+            local bytes = conn:getBytesAvailable()
+            if bytes > 0 then
+                local chunk = conn:read(bytes)
+                -- print("Received chunk of size:", #chunk)
+                if chunk then
+                    local data = json.decode(chunk)
+                    for key, value in pairs(data) do
+                        print(key)
+                    end
+                    if data and data.finalUrl then
+                        table.insert(fetchQueue, index,
+                            { url = data.finalUrl, callback = callback, filepath = filepath, priority = priority })
+                    end
+                end
+            end
+        end)
+        conn:get(path)
+    else
+        table.insert(fetchQueue, index, { url = url, callback = callback, filepath = filepath, priority = priority })
+    end
 end
