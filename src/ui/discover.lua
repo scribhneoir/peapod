@@ -5,16 +5,6 @@ Discover = {
     switchScene = nil, -- set in ui.lua
 }
 
-function StripString(str)
-    local stripped = str:gsub("%s+", "_")
-    stripped:gsub("[^%w_]", "")
-    stripped:gsub("æ", "ae")
-    stripped:gsub("ø", "o")
-    stripped:gsub("å", "a")
-    stripped:gsub(":", "")
-    return string.lower(stripped)
-end
-
 local function parseSubtitle(title)
     local separatorIndex = string.find(title, "%-") or string.find(title, ":")
     if separatorIndex then
