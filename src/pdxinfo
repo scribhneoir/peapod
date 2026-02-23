@@ -1,7 +1,7 @@
 name=Peapod
 author=scribhneoir
 description=a podcast player
-bundleID=com.scribhneoir.playcast
+bundleID=com.scribhneoir.peapod
 version=0.0.1
 buildNumber=1
 imagePath=assets/system

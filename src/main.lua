@@ -3,19 +3,19 @@ import "CoreLibs/keyboard"
 import 'CoreLibs/ui/gridview.lua'
 import 'CoreLibs/nineslice'
 import 'CoreLibs/graphics'
+import 'CoreLibs/string'
 
 
 import "util"
 import "network"
 import "handler/file"
 import "handler/xml"
+import "handler/mp3"
 import "ui/ui"
-import "sound"
 
 
 local network <const> = Network
 local ui <const> = UI
-local sound <const> = Sound
 local timer <const> = playdate.timer
 local getCurrentTimeMilliseconds <const> = playdate.getCurrentTimeMilliseconds
 
@@ -35,6 +35,5 @@ function playdate.update()
 
     network.update()
     ui.update()
-    sound.update()
     playdate.drawFPS(385, 228)
 end

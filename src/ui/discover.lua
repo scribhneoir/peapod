@@ -1,9 +1,10 @@
-local file <const> = playdate.file
-local gfx <const> = playdate.graphics
-local keyboard <const> = playdate.keyboard
 Discover = {
     switchScene = nil, -- set in ui.lua
 }
+
+local file <const> = playdate.file
+local gfx <const> = playdate.graphics
+local keyboard <const> = playdate.keyboard
 
 local function parseSubtitle(title)
     local separatorIndex = string.find(title, "%-") or string.find(title, ":")

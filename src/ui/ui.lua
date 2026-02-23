@@ -7,7 +7,7 @@ local ui <const> = playdate.ui
 UI = {}
 
 local scenes <const> = {
-    DISCOVER = Discover,
+    -- DISCOVER = Discover,
     -- FEED = "FEED",
     -- LIBRARY = "LIBRARY",
     EPISODES = Episodes,
@@ -17,10 +17,11 @@ local scenes <const> = {
 
 local currentScene = scenes.EPISODES
 currentScene.init({
+    id = "1415546090",
     title = "Into the Aether",
     subtitle = "A lowkey videogame podcast",
     feedUrl =
-    "https://feeds.simplecast.com/54nAGcIl"
+    "https://feeds.transistor.fm/intotheaether"
 })
 local nextScene = nil
 
