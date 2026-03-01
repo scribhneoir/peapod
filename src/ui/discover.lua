@@ -28,9 +28,8 @@ local titles = {}
 local subtitles = {}
 local feedUrls = {}
 local searchTerm = "into the aether";
+local searchFileHandle
 local oldTerm = nil
-local fetched = false
-local queuedFetch = false
 
 local NUMBER_OF_RESULTS = 10
 
@@ -47,10 +46,10 @@ local function parseDiscoverData(fileHandle)
         local artworkUrl = value.artworkUrl60
         local feedUrl = value.feedUrl
         local strippedTitle = StripString(title)
-        if not file.exists("cache/artwork/" .. strippedTitle .. ".pdi") then
-            print("Fetching artwork for:", strippedTitle)
-            Network.fetch("https://pdi-image-converter.scribhneoir.workers.dev/?url=" .. artworkUrl, function(file)
-            end, "cache/artwork/" .. strippedTitle .. ".pdi")
+        local artworkPath = "cache/artwork/" .. strippedTitle .. ".pdi"
+        if not file.exists(artworkPath) then
+            Network.fetch("https://pdi-image-converter.scribhneoir.workers.dev/?url=" .. artworkUrl,
+                FileHandle.new(artworkPath))
         end
         titles[#titles + 1] = title
         subtitles[#subtitles + 1] = subtitle
@@ -60,15 +59,12 @@ local function parseDiscoverData(fileHandle)
 end
 
 local function fetchDiscoverData()
-    if file.exists("cache/search/" .. searchTerm .. ".json") then --todo: check if cached file modtime is recent enough
-        parseDiscoverData(File.new("cache/search/" .. searchTerm .. ".json"))
-    else
-        Network.fetch("https://itunes.apple.com/search?media=podcast&term=" .. searchTerm:gsub(" ", "+") .. "&limit=" ..
-            NUMBER_OF_RESULTS, function(file)
-                parseDiscoverData(file)
-            end, "cache/search/" .. searchTerm .. ".json")
+    searchFileHandle = FileHandle.new("cache/search/" .. searchTerm .. ".json")
+    if not searchFileHandle:exists() then --todo: check if cached file modtime is recent enough
+        local url = "https://itunes.apple.com/search?media=podcast&term=" ..
+            searchTerm:gsub(" ", "+") .. "&limit=" .. NUMBER_OF_RESULTS
+        Network.fetch(url, searchFileHandle)
     end
-    queuedFetch = true
 end
 
 local subfont = gfx.font.new('assets/fonts/Nontendo/Nontendo-Light')
@@ -208,8 +204,6 @@ keyboard.keyboardWillHideCallback = function(ok)
         subtitles = {}
         feedUrls = {}
         imagesInMemory = {}
-        fetched = false
-        queuedFetch = false
     end
     playdate.display.setRefreshRate(0)
 end
@@ -226,7 +220,7 @@ local targetFPS = 12
 
 local function drawSearch()
     local framesToAdvance = targetFPS * DeltaTime
-    if not fetched then
+    if not searchFileHandle then
         if searchState == "search" then
             searchState = "into_fetch"
             searchIndex = 1
@@ -283,17 +277,13 @@ local function renderData()
     end
 end
 
-function Discover.init(args)
-    print("Discover scene initialized with args:", args)
-end
-
 function Discover.update()
-    if not queuedFetch then
+    if not searchFileHandle then
         fetchDiscoverData()
     end
     renderData()
 end
 
-function Discover.init(args)
+function Discover.init(_)
     listview.needsDisplay = true
 end

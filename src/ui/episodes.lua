@@ -42,8 +42,8 @@ function Episodes.init(args)
         enclosure = "enclosure._attr",
         episode = "itunes:episode",
         season = "itunes:season",
-    }, "shows/" .. id .. "/", "episodes")
-    Network.fetch(feedUrl, xmlHandle)
+    }, "shows/" .. id .. "/", "episodes", feedUrl)
+    -- Network.fetch(feedUrl, xmlHandle)
 end
 
 local titleFont = gfx.font.new('assets/fonts/Quickboot/Quickboot')
@@ -73,17 +73,22 @@ function listview:drawCell(_, row, _, selected, x, y, width, height)
 end
 
 local function getEpisodes()
-    if episodes and #episodes < numberOfEpisodes then
-        local files = file.listFiles("shows/" .. id .. "/episodes/")
-        for i = #episodes + 1, math.min(numberOfEpisodes, #files) do
-            local episodeData = json.decodeFile("shows/" .. id .. "/episodes/" .. files[i])
-            if episodeData then
-                print("Loaded episode:", episodeData.title)
-                print("Loaded episode:", episodeData.pubDate)
-                episodes[i] = episodeData
+    if numberOfEpisodes > #episodes then
+        local fileNames = {}
+        local fileList = file.listFiles("shows/" .. id .. "/episodes")
+        table.move(fileList, #fileList - numberOfEpisodes - 1, #fileList - #episodes - 1, 1, fileNames)
+        fileList = {}
+        for i = #fileNames, 1, -1 do
+            local fileName = fileNames[i]
+            if fileName then
+                local path = "shows/" .. id .. "/episodes/" .. fileName
+                local data = json.decodeFile(path)
+                table.insert(episodes, data)
+            else
+                print(i)
             end
+            listview:setNumberOfRows(#episodes + 1)
         end
-        listview:setNumberOfRows(math.max(#episodes, 1))
     end
 end
 
@@ -186,5 +191,17 @@ function Episodes.cranked(change, acceleratedChange)
         handleUp()
     elseif clickCount < 0 then
         handleDown()
+    end
+end
+
+function playdate.gameWillPause()
+    if mp3Handle then
+        mp3Handle:pause()
+    end
+end
+
+function playdate.gameWillResume()
+    if mp3Handle then
+        mp3Handle:resume()
     end
 end

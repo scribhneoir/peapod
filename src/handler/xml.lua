@@ -1,3 +1,24 @@
+--- @class XmlHandle
+--- @field url string
+--- @field headerData table
+--- @field headerTagMap table
+--- @field itemTag string
+--- @field itemSubTagMap table
+--- @field path string
+--- @field itemPath string
+--- @field buffer string
+--- @field index number
+--- @field oldData boolean
+--- @field xmlPaths table
+--- @field parsing boolean
+--- @field onData fun(self: XmlHandle, data: string)
+--- @field onFinish fun(self: XmlHandle)
+--- @field getDataProgress fun(self: XmlHandle): number
+--- @field setContentLength fun(self: XmlHandle, length: number)
+--- @field getSize fun(self: XmlHandle): number
+--- @field update fun(self: XmlHandle)
+XmlHandle = {}
+
 local store <const> = playdate.datastore
 local file <const> = playdate.file
 
@@ -33,9 +54,6 @@ local function parseRFC822(date)
     return year .. "_" .. monthNum .. "_" .. day .. "_" .. hour .. "_" .. min .. "_" .. sec
 end
 
-
-XmlHandle = {}
-
 function XmlHandle:parse(data)
     if self.parsing then return end
     self.parsing = true
@@ -51,9 +69,9 @@ local function parseNow(data, tag)
     return tree.root[tag]
 end
 
-function XmlHandle.new(headerTagMap, itemTag, itemSubTagMap, path, itemPath)
+function XmlHandle.new(headerTagMap, itemTag, itemSubTagMap, path, itemPath, url)
     local self = setmetatable({}, { __index = XmlHandle })
-    self.itemData = {}
+    self.url = url
     self.headerData = {}
     self.headerTagMap = headerTagMap
     self.itemTag = itemTag or "item"
@@ -63,6 +81,7 @@ function XmlHandle.new(headerTagMap, itemTag, itemSubTagMap, path, itemPath)
     self.buffer = ""
     self.index = 1
     self.oldData = false
+    self.xmlPaths = {}
     if not file.isdir(self.path .. "/" .. self.itemPath .. "/xml") then
         file.mkdir(self.path .. "/" .. self.itemPath .. "/xml")
     end
@@ -106,12 +125,13 @@ function XmlHandle:onData(data)
         print("Parsed XML:", itemXml:len())
         self.buffer = string.sub(self.buffer, itemEnd + 1)
         print("Remaining buffer:", self.buffer:len())
-
-        local handle = file.open(self.path .. "/" .. self.itemPath .. "/xml/" .. self.index .. ".xml", file.kFileWrite)
+        local xmlPath = self.path .. "/" .. self.itemPath .. "/xml/" .. self.index .. ".xml"
+        local handle = file.open(xmlPath, file.kFileWrite)
         assert(handle,
-            "Failed to open file for writing: " .. self.path .. "/" .. self.itemPath .. "/xml/" .. self.index .. ".xml")
+            "Failed to open file for writing: " .. xmlPath)
         handle:write(itemXml)
         handle:close()
+        self.xmlPaths[#self.xmlPaths + 1] = xmlPath
         self.index = self.index + 1
         itemStart, itemEnd = string.find(self.buffer, "<" .. self.itemTag .. ">(.-)</" .. self.itemTag .. ">")
     end
@@ -149,6 +169,7 @@ function XmlHandle:update()
             if file.exists(path .. ".json") then
                 print("Episode already exists, skipping:", path)
                 self.oldData = true
+                Network.cancel(self.url)
                 return
             end
             store.write(data, self.path .. "/" .. self.itemPath .. "/" .. pubDate)
@@ -156,15 +177,14 @@ function XmlHandle:update()
         return
     end
 
-    local files = file.listFiles(self.path .. "/" .. self.itemPath .. "/xml")
-    if files and #files > 0 then
-        local fileName = files[1]
-        local path = self.path .. "/" .. self.itemPath .. "/xml/" .. fileName
+    if self.xmlPaths and #self.xmlPaths > 0 then
+        local path = self.xmlPaths[1]
         local handle = file.open(path, file.kFileRead)
         assert(handle, "Failed to open file for reading: " .. path)
         local xmlData = handle:read(file.getSize(path))
         handle:close()
         self:parse(xmlData)
         file.delete(path)
+        table.remove(self.xmlPaths, 1)
     end
 end

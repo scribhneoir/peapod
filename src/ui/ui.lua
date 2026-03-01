@@ -7,7 +7,7 @@ local ui <const> = playdate.ui
 UI = {}
 
 local scenes <const> = {
-    -- DISCOVER = Discover,
+    DISCOVER = Discover,
     -- FEED = "FEED",
     -- LIBRARY = "LIBRARY",
     EPISODES = Episodes,
