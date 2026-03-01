@@ -21,9 +21,10 @@ local function getExtensionIndex(filename)
     return filename:find(".([^%.]+)$")
 end
 
-function FileHandle.new(filepath, temp, complete)
+function FileHandle.new(filepath, temp)
     local self = setmetatable({}, { __index = FileHandle })
     self.filepath = filepath
+    self.complete = false
     local dirpath = string.match(filepath, "(.*/)")
     if dirpath and not file.isdir(dirpath) then
         file.mkdir(dirpath)
@@ -73,6 +74,10 @@ function FileHandle:onFinish()
         file.rename(self.tempPath, self.filepath)
     end
     self.complete = true
+end
+
+function FileHandle:setComplete(comp)
+    self.complete = comp
 end
 
 function FileHandle:getDataProgress()

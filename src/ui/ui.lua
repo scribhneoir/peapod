@@ -15,14 +15,14 @@ local scenes <const> = {
     -- SETTINGS = "SETTINGS",
 }
 
-local currentScene = scenes.EPISODES
-currentScene.init({
-    id = "1415546090",
-    title = "Into the Aether",
-    subtitle = "A lowkey videogame podcast",
-    feedUrl =
-    "https://feeds.transistor.fm/intotheaether"
-})
+local currentScene = scenes.DISCOVER
+-- currentScene.init({
+--     id = "1415546090",
+--     title = "Into the Aether",
+--     subtitle = "A lowkey videogame podcast",
+--     feedUrl =
+--     "https://feeds.transistor.fm/intotheaether"
+-- })
 local nextScene = nil
 
 local function switchScene(scene, args)

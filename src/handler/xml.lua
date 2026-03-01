@@ -29,8 +29,9 @@ local xmlTree = import "../libs/xml/xmlTree"
 -- store episode order table in episode index file
 -- use uuid for episode files
 local function parseRFC822(date)
-    local pattern = "(%a+), (%d+) (%a+) (%d+) (%d+):(%d+):(%d+) ([+-]%d%d%d%d)"
-    local dayOfWeek, day, month, year, hour, min, sec, tz = date:match(pattern)
+    -- Sun, 30 Jun 2019 19:32:21 GMT
+    local pattern = "(%a+), (%d+) (%a+) (%d+) (%d+):(%d+):(%d+) (.)"
+    local dayOfWeek, day, month, year, hour, min, sec, _ = date:match(pattern)
     if not dayOfWeek then
         print("Failed to parse date:", date)
         return nil
@@ -164,6 +165,7 @@ function XmlHandle:update()
             for assignment, tag in pairs(self.itemSubTagMap) do
                 data[assignment] = GetNested(self.tree.root[self.itemTag], tag)
             end
+            print(data.pubDate)
             local pubDate = parseRFC822(data.pubDate)
             local path = self.path .. "/" .. self.itemPath .. "/" .. pubDate
             if file.exists(path .. ".json") then

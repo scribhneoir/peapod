@@ -28,10 +28,10 @@ listview:setCellPadding(5, 5, 2, 2)
 
 function Episodes.init(args)
     id, title, subtitle, feedUrl = args.id, args.title, args.subtitle, args.feedUrl
+    print(id)
     episodes = {}
     numberOfEpisodes = 5
     listview:setNumberOfRows(1)
-    strippedTitle = StripString(title)
     xmlHandle = XmlHandle.new({
         description = "description",
         link = "link",
@@ -43,7 +43,7 @@ function Episodes.init(args)
         episode = "itunes:episode",
         season = "itunes:season",
     }, "shows/" .. id .. "/", "episodes", feedUrl)
-    -- Network.fetch(feedUrl, xmlHandle)
+    Network.fetch(feedUrl, xmlHandle)
 end
 
 local titleFont = gfx.font.new('assets/fonts/Quickboot/Quickboot')
@@ -99,9 +99,9 @@ function Episodes.update()
         if image then
             gfx.setImageDrawMode(gfx.kDrawModeCopy)
             image:draw(5, 5)
-        elseif file.exists("cache/artwork/" .. strippedTitle .. ".pdi") then
+        elseif file.exists("cache/artwork/" .. id .. ".pdi") then
             gfx.setImageDrawMode(gfx.kDrawModeCopy)
-            local image = gfx.image.new("cache/artwork/" .. strippedTitle .. ".pdi")
+            local image = gfx.image.new("cache/artwork/" .. id .. ".pdi")
             assert(image, "Failed to load image for " .. title)
             image:setMaskImage(maskImage)
             image = image
@@ -159,7 +159,10 @@ end
 
 function Episodes.BButtonUp()
     Episodes.switchScene("DISCOVER")
-    episodes = nil
+    Network.cancel(feedUrl)
+    listview:setNumberOfRows(1)
+    episodes = {}
+
     xmlHandle = nil
     image = nil
     collectgarbage()
