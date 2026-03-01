@@ -8,7 +8,6 @@ local gfx <const> = playdate.graphics
 local numberOfEpisodes = 5
 local id
 local title
-local strippedTitle
 local subtitle
 local feedUrl
 local episodes
