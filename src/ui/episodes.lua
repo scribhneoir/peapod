@@ -160,6 +160,8 @@ end
 function Episodes.BButtonUp()
     Episodes.switchScene("DISCOVER")
     Network.cancel(feedUrl)
+    -- todo: cancelling early will keep old episodes from ever being fetched,
+    -- due to the xml handler prematurely haulting download / parse once it runs into redundant data
     listview:setNumberOfRows(1)
     episodes = {}
 
