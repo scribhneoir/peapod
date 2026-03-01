@@ -1,9 +1,10 @@
-local file <const> = playdate.file
-local gfx <const> = playdate.graphics
-local keyboard <const> = playdate.keyboard
 Discover = {
     switchScene = nil, -- set in ui.lua
 }
+
+local file <const> = playdate.file
+local gfx <const> = playdate.graphics
+local keyboard <const> = playdate.keyboard
 
 local function parseSubtitle(title)
     local separatorIndex = string.find(title, "%-") or string.find(title, ":")
@@ -25,49 +26,45 @@ gfx.unlockFocus()
 local imagesInMemory = {}
 local titles = {}
 local subtitles = {}
+local ids = {}
 local feedUrls = {}
 local searchTerm = "into the aether";
+local searchFileHandle
 local oldTerm = nil
 local fetched = false
-local queuedFetch = false
 
 local NUMBER_OF_RESULTS = 10
 
-local function parseDiscoverData(fileHandle)
-    local data = fileHandle:read()
-    if (not data) then
-        print("Failed to read discover data")
-        fileHandle:delete()
-        queuedFetch = false
-        return
-    end
+local function parseDiscoverData()
+    local data = searchFileHandle:read()
     for _, value in pairs(data.results) do
         local title, subtitle = parseSubtitle(value.trackName)
         local artworkUrl = value.artworkUrl60
         local feedUrl = value.feedUrl
-        local strippedTitle = StripString(title)
-        if not file.exists("cache/artwork/" .. strippedTitle .. ".pdi") then
-            print("Fetching artwork for:", strippedTitle)
-            Network.fetch("https://pdi-image-converter.scribhneoir.workers.dev/?url=" .. artworkUrl, function(file)
-            end, "cache/artwork/" .. strippedTitle .. ".pdi")
+        local id = value.trackId
+        local artworkPath = "cache/artwork/" .. id .. ".pdi"
+        if not file.exists(artworkPath) then
+            Network.fetch("https://pdi-image-converter.scribhneoir.workers.dev/?url=" .. artworkUrl,
+                FileHandle.new(artworkPath))
         end
         titles[#titles + 1] = title
         subtitles[#subtitles + 1] = subtitle
         feedUrls[#feedUrls + 1] = feedUrl
+        ids[#ids + 1] = id
     end
     fetched = true
 end
 
 local function fetchDiscoverData()
-    if file.exists("cache/search/" .. searchTerm .. ".json") then --todo: check if cached file modtime is recent enough
-        parseDiscoverData(File.new("cache/search/" .. searchTerm .. ".json"))
+    fetched = false
+    searchFileHandle = FileHandle.new("cache/search/" .. searchTerm .. ".json")
+    if not searchFileHandle:exists() then --todo: check if cached file modtime is recent enough
+        local url = "https://itunes.apple.com/search?media=podcast&term=" ..
+            searchTerm:gsub(" ", "+") .. "&limit=" .. NUMBER_OF_RESULTS
+        Network.fetch(url, searchFileHandle)
     else
-        Network.fetch("https://itunes.apple.com/search?media=podcast&term=" .. searchTerm:gsub(" ", "+") .. "&limit=" ..
-            NUMBER_OF_RESULTS, function(file)
-                parseDiscoverData(file)
-            end, "cache/search/" .. searchTerm .. ".json")
+        searchFileHandle:setComplete(true)
     end
-    queuedFetch = true
 end
 
 local subfont = gfx.font.new('assets/fonts/Nontendo/Nontendo-Light')
@@ -82,7 +79,7 @@ function listview:drawCell(_, row, _, selected, x, y, width, height)
     if titles[row] then
         local title = titles[row]
         local subtitle = subtitles[row]
-        local strippedTitle = StripString(title)
+        local id = ids[row]
         if selected then
             gfx.setColor(gfx.kColorBlack)
             gfx.fillRoundRect(x, y, width, height, 4)
@@ -103,9 +100,9 @@ function listview:drawCell(_, row, _, selected, x, y, width, height)
         if image then
             gfx.setImageDrawMode(gfx.kDrawModeCopy)
             image:draw(x + 5, y + 5)
-        elseif file.exists("cache/artwork/" .. strippedTitle .. ".pdi") then
+        elseif file.exists("cache/artwork/" .. id .. ".pdi") then
             gfx.setImageDrawMode(gfx.kDrawModeCopy)
-            local image = gfx.image.new("cache/artwork/" .. strippedTitle .. ".pdi")
+            local image = gfx.image.new("cache/artwork/" .. id .. ".pdi")
             assert(image, "Failed to load image for " .. title)
             image:setMaskImage(maskImage)
             imagesInMemory[row] = image
@@ -153,7 +150,8 @@ function Discover.AButtonUp()
     local selectedRow = listview:getSelectedRow()
     if titles[selectedRow] then
         Discover.switchScene("EPISODES",
-            { title = titles[selectedRow], subtitle = subtitles[selectedRow], feedUrl = feedUrls[selectedRow] })
+            { id = ids[selectedRow], title = titles[selectedRow], subtitle = subtitles[selectedRow], feedUrl = feedUrls
+            [selectedRow] })
     elseif selectedRow == 0 then
         oldTerm = searchTerm
         searchTerm = ""
@@ -166,7 +164,7 @@ end
 local clickDegrees <const> = 360 / 15
 local degreesSinceClick = 0
 
-function Discover.cranked(change, acceleratedChange)
+function Discover.cranked(_, acceleratedChange)
     degreesSinceClick += acceleratedChange
 
     local clickCount = 0
@@ -207,8 +205,7 @@ keyboard.keyboardWillHideCallback = function(ok)
         subtitles = {}
         feedUrls = {}
         imagesInMemory = {}
-        fetched = false
-        queuedFetch = false
+        searchFileHandle = nil
     end
     playdate.display.setRefreshRate(0)
 end
@@ -225,7 +222,7 @@ local targetFPS = 12
 
 local function drawSearch()
     local framesToAdvance = targetFPS * DeltaTime
-    if not fetched then
+    if not searchFileHandle.complete then
         if searchState == "search" then
             searchState = "into_fetch"
             searchIndex = 1
@@ -282,17 +279,16 @@ local function renderData()
     end
 end
 
-function Discover.init(args)
-    print("Discover scene initialized with args:", args)
-end
-
 function Discover.update()
-    if not queuedFetch then
+    if not searchFileHandle then
         fetchDiscoverData()
+    end
+    if not fetched and searchFileHandle.complete then
+        parseDiscoverData()
     end
     renderData()
 end
 
-function Discover.init(args)
+function Discover.init(_)
     listview.needsDisplay = true
 end

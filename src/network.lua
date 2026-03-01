@@ -17,15 +17,15 @@ local worker = {}
 -- TODO: handle canceling fetches
 
 function worker:handleHeaders()
-    print("Received headers for:", self.url)
-    local error = self.connection:getError()
-    if error then
-        print("Error fetching:", self.url, "Error code:", error)
-    end
+    print("Received response headers for URL:", self.url)
     local headers = self.connection:getResponseHeaders()
-    if headers then
-        for key, value in pairs(headers) do
-            print(key .. ": " .. value)
+    if headers and headers["Content-Length"] then
+        print("Content-Length header found:", headers["Content-Length"])
+        local num, err = tonumber(headers["Content-Length"])
+        if not num then
+            print("Error parsing content-length header " .. headers["Content-Length"] .. ":", err)
+        else
+            self.handler:setContentLength(num)
         end
     end
 end
@@ -34,25 +34,20 @@ function worker:handleData()
     local bytes = self.connection:getBytesAvailable()
     if bytes > 0 then
         local chunk = self.connection:read(bytes)
-        -- print("Received chunk of size:", #chunk)
         if chunk then
-            self.file:download(chunk)
+            self.handler:onData(chunk)
         end
     end
 end
 
-function worker:handleCallback()
-    self.file:finishDownload()
-    -- TODO: check file completeness
-    if self.callback then
-        self.callback(self.file)
-    end
-    -- print("Fetch complete for:", self.filepath)
+function worker:handleFinish()
+    print("Finished receiving data for URL:", self.url)
+    self.handler:onFinish()
     self.connection:close()
 end
 
 function worker:kill()
-    -- print("Worker killed:", self.filepath)
+    print("Killing worker for URL:", self.url)
     local index = nil
     for i, w in ipairs(activeWorkers) do
         if w == self then
@@ -64,34 +59,36 @@ function worker:kill()
     self = nil
 end
 
-function worker.new(url, callback, filepath)
-    print("Queueing fetch for:", url, "to be saved at:", filepath)
+function worker.new(url, handler)
+    print("Creating worker for URL:", url)
     local self = setmetatable({}, { __index = worker })
     self.url = url
-    self.callback = callback
-    self.filepath = filepath
+    self.handler = handler
 
     local host, port, secure, path = parseURL(url)
-
     self.connection = net.http.new(host, port, secure)
-    self.file = File.new(filepath)
     self.connection:setHeadersReadCallback(function() self:handleHeaders() end)
     self.connection:setRequestCallback(function() self:handleData() end)
-    self.connection:setRequestCompleteCallback(function() self:handleCallback() end)
+    self.connection:setRequestCompleteCallback(function() self:handleFinish() end)
     self.connection:setConnectionClosedCallback(function() self:kill() end)
-    local queued, err = self.connection:get(path,
-        {
-            ["User-Agent"] = "Mozilla/5.0 (Playdate)",
-            ["Accept"] = "*/*",
-            ["Connection"] = "close",      -- Force HTTP/1.1 behavior
-            ["Cache-Control"] = "no-cache" -- Prevent caching issues
-        }
-    )
+    local headers = {
+        ["User-Agent"] = "Mozilla/5.0 (Playdate)",
+        ["Accept"] = "*/*",
+    }
+    local size = handler.getSize and handler:getSize() or 0
+    if size > 0 then
+        headers["Range"] = "bytes=" .. size .. "-"
+    end
+    local queued, err = self.connection:get(path, headers)
+    if not queued then -- todo: implement retry logic for failed fetches
+        print("Failed to queue request for:", url, "Error:", err)
+        self:kill()
+    end
     return self
 end
 
 Network = {}
---todo: check if playdate.network.getStatus() == playdate.network.kStatusConnected. Otherwise, the app should run in offline mode.
+--todo: check if playdate.network.getStatus() == CONNECTED. Otherwise, the app should run in offline mode.
 
 
 local network_permission = false
@@ -100,8 +97,7 @@ local fetchQueue = {}
 local function handleQueue()
     if #fetchQueue > 0 and #activeWorkers < MAX_WORKERS then
         local item = table.remove(fetchQueue, 1)
-        -- print("Starting fetch for:", item.filepath)
-        activeWorkers[#activeWorkers + 1] = worker.new(item.url, item.callback, item.filepath)
+        activeWorkers[#activeWorkers + 1] = worker.new(item.url, item.handler)
     end
     -- print("Active workers:", #activeWorkers, "Queue length:", #fetchQueue)
 end
@@ -119,7 +115,7 @@ function Network.update()
     end
 end
 
-function Network.fetch(url, callback, filepath, priority, redirect)
+function Network.fetch(url, handler, priority, redirect)
     priority = priority or 1
     local index = #fetchQueue + 1
     for i, item in ipairs(fetchQueue) do
@@ -128,15 +124,15 @@ function Network.fetch(url, callback, filepath, priority, redirect)
             break
         end
     end
-    if (playdate.isSimulator and redirect) then
+    if redirect and playdate.isSimulator then
         local redirectUrl = "https://redirect-stripper.scribhneoir.workers.dev/?url=" .. url
         local host, port, secure, path = parseURL(redirectUrl)
         local conn = net.http.new(host, port, secure)
+        assert(conn, "Failed to create network connection for redirect stripping")
         conn:setRequestCompleteCallback(function()
             local bytes = conn:getBytesAvailable()
             if bytes > 0 then
                 local chunk = conn:read(bytes)
-                -- print("Received chunk of size:", #chunk)
                 if chunk then
                     local data = json.decode(chunk)
                     for key, value in pairs(data) do
@@ -144,13 +140,30 @@ function Network.fetch(url, callback, filepath, priority, redirect)
                     end
                     if data and data.finalUrl then
                         table.insert(fetchQueue, index,
-                            { url = data.finalUrl, callback = callback, filepath = filepath, priority = priority })
+                            { url = data.finalUrl, handler = handler, priority = priority })
                     end
                 end
             end
         end)
         conn:get(path)
     else
-        table.insert(fetchQueue, index, { url = url, callback = callback, filepath = filepath, priority = priority })
+        table.insert(fetchQueue, index, { url = url, handler = handler, priority = priority })
+    end
+end
+
+function Network.cancel(url)
+    for _, w in ipairs(activeWorkers) do
+        if w.url == url then
+            print("Canceling active fetch for URL:", url)
+            w.connection:close()
+            return
+        end
+    end
+    for i, item in ipairs(fetchQueue) do
+        if item.url == url then
+            print("Canceling queued fetch for URL:", url)
+            table.remove(fetchQueue, i)
+            return
+        end
     end
 end

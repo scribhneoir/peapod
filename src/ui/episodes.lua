@@ -1,16 +1,19 @@
-Episodes = {}
+Episodes = {
+    switchScene = nil, -- will be set by ui.lua
+}
 
 local file <const> = playdate.file
 local gfx <const> = playdate.graphics
 
-local NUMBER_OF_EPISODES = 5
+local numberOfEpisodes = 5
+local id
 local title
-local strippedTitle
 local subtitle
 local feedUrl
 local episodes
 local xmlHandle
 local image
+local mp3Handle
 
 local maskImage <const> = gfx.image.new(60, 60, gfx.kColorBlack)
 gfx.lockFocus(maskImage)
@@ -22,25 +25,24 @@ local listview = playdate.ui.gridview.new(0, 35)
 listview:setNumberOfRows(1)
 listview:setCellPadding(5, 5, 2, 2)
 
-local function handleParsedItem(parsedItem)
-    -- TODO: cache this data, since xml parsing takes forever
-    table.insert(episodes, parsedItem)
-    listview:setNumberOfRows(#episodes + 1)
-end
-
 function Episodes.init(args)
-    title, subtitle, feedUrl = args.title, args.subtitle, args.feedUrl
+    id, title, subtitle, feedUrl = args.id, args.title, args.subtitle, args.feedUrl
+    print(id)
     episodes = {}
+    numberOfEpisodes = 5
     listview:setNumberOfRows(1)
-    strippedTitle = StripString(title)
-    if file.exists("cache/feeds/" .. strippedTitle .. ".xml") then --todo: check if cached file modtime is recent enough
-        xmlHandle = Xml.new("cache/feeds/" .. strippedTitle .. ".xml", "item", handleParsedItem, NUMBER_OF_EPISODES)
-    else
-        Network.fetch(feedUrl, function()
-                xmlHandle = Xml.new("cache/feeds/" .. strippedTitle .. ".xml", "item", handleParsedItem, 2)
-            end,
-            "cache/feeds/" .. strippedTitle .. ".xml")
-    end
+    xmlHandle = XmlHandle.new({
+        description = "description",
+        link = "link",
+    }, "item", {
+        title = "title",
+        description = "description",
+        pubDate = "pubDate",
+        enclosure = "enclosure._attr",
+        episode = "itunes:episode",
+        season = "itunes:season",
+    }, "shows/" .. id .. "/", "episodes", feedUrl)
+    Network.fetch(feedUrl, xmlHandle)
 end
 
 local titleFont = gfx.font.new('assets/fonts/Quickboot/Quickboot')
@@ -69,15 +71,36 @@ function listview:drawCell(_, row, _, selected, x, y, width, height)
     end
 end
 
+local function getEpisodes()
+    if numberOfEpisodes > #episodes then
+        local fileNames = {}
+        local fileList = file.listFiles("shows/" .. id .. "/episodes")
+        table.move(fileList, #fileList - numberOfEpisodes - 1, #fileList - #episodes - 1, 1, fileNames)
+        fileList = {}
+        for i = #fileNames, 1, -1 do
+            local fileName = fileNames[i]
+            if fileName then
+                local path = "shows/" .. id .. "/episodes/" .. fileName
+                local data = json.decodeFile(path)
+                table.insert(episodes, data)
+            else
+                print(i)
+            end
+            listview:setNumberOfRows(#episodes + 1)
+        end
+    end
+end
+
+
 function Episodes.update()
     if listview.needsDisplay then
         playdate.graphics.clear()
         if image then
             gfx.setImageDrawMode(gfx.kDrawModeCopy)
             image:draw(5, 5)
-        elseif file.exists("cache/artwork/" .. strippedTitle .. ".pdi") then
+        elseif file.exists("cache/artwork/" .. id .. ".pdi") then
             gfx.setImageDrawMode(gfx.kDrawModeCopy)
-            local image = gfx.image.new("cache/artwork/" .. strippedTitle .. ".pdi")
+            local image = gfx.image.new("cache/artwork/" .. id .. ".pdi")
             assert(image, "Failed to load image for " .. title)
             image:setMaskImage(maskImage)
             image = image
@@ -96,6 +119,7 @@ function Episodes.update()
     if xmlHandle then
         xmlHandle:update()
     end
+    getEpisodes()
 end
 
 local function handleUp()
@@ -107,7 +131,7 @@ local function handleDown()
         return
     end
     if listview:getSelectedRow() >= #episodes - 2 then
-        xmlHandle:setMaxItems(#episodes + 3)
+        numberOfEpisodes = numberOfEpisodes + 5
     end
     listview:selectNextRow(false)
 end
@@ -125,18 +149,21 @@ function Episodes.AButtonUp()
         return
     end
     local episode = episodes[listview:getSelectedRow()]
-    local title = StripString(episode.title or "No title")
     if episode.enclosure then
-        local url = episode.enclosure._attr.url
-        -- local url = "https://audio.transistor.fm/m/shows/11787/f5eb5f9a729a19122bce1b54a0d1ba14.mp3"
-        print(title)
-        Sound.stream(url, "cache/audio/" .. title .. ".mp3")
+        local url = episode.enclosure.url
+        mp3Handle = Mp3Handle.new("shows/" .. id .. "/" .. StripString(episode.title) .. ".mp3")
+        Network.fetch(url, mp3Handle, 10, true)
     end
 end
 
 function Episodes.BButtonUp()
     Episodes.switchScene("DISCOVER")
-    episodes = nil
+    Network.cancel(feedUrl)
+    -- todo: cancelling early will keep old episodes from ever being fetched,
+    -- due to the xml handler prematurely haulting download / parse once it runs into redundant data
+    listview:setNumberOfRows(1)
+    episodes = {}
+
     xmlHandle = nil
     image = nil
     collectgarbage()
@@ -168,5 +195,17 @@ function Episodes.cranked(change, acceleratedChange)
         handleUp()
     elseif clickCount < 0 then
         handleDown()
+    end
+end
+
+function playdate.gameWillPause()
+    if mp3Handle then
+        mp3Handle:pause()
+    end
+end
+
+function playdate.gameWillResume()
+    if mp3Handle then
+        mp3Handle:resume()
     end
 end

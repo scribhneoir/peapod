@@ -440,5 +440,10 @@ function XmlParser:update()
     end
 end
 
+function XmlParser:parseNow(xmlData, parseAttributes)
+    self:parse(xmlData, parseAttributes)
+    while not self:update() do end
+end
+
 XmlParser.__index = XmlParser
 return XmlParser
