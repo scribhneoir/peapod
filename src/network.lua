@@ -17,10 +17,8 @@ local worker = {}
 -- TODO: handle canceling fetches
 
 function worker:handleHeaders()
-    print("Received response headers for URL:", self.url)
     local headers = self.connection:getResponseHeaders()
     if headers and headers["Content-Length"] then
-        print("Content-Length header found:", headers["Content-Length"])
         local num, err = tonumber(headers["Content-Length"])
         if not num then
             print("Error parsing content-length header " .. headers["Content-Length"] .. ":", err)
@@ -41,13 +39,11 @@ function worker:handleData()
 end
 
 function worker:handleFinish()
-    print("Finished receiving data for URL:", self.url)
     self.handler:onFinish()
     self.connection:close()
 end
 
 function worker:kill()
-    print("Killing worker for URL:", self.url)
     local index = nil
     for i, w in ipairs(activeWorkers) do
         if w == self then
@@ -60,7 +56,6 @@ function worker:kill()
 end
 
 function worker.new(url, handler)
-    print("Creating worker for URL:", url)
     local self = setmetatable({}, { __index = worker })
     self.url = url
     self.handler = handler
@@ -81,7 +76,6 @@ function worker.new(url, handler)
     end
     local queued, err = self.connection:get(path, headers)
     if not queued then -- todo: implement retry logic for failed fetches
-        print("Failed to queue request for:", url, "Error:", err)
         self:kill()
     end
     return self
@@ -135,9 +129,6 @@ function Network.fetch(url, handler, priority, redirect)
                 local chunk = conn:read(bytes)
                 if chunk then
                     local data = json.decode(chunk)
-                    for key, value in pairs(data) do
-                        print(key)
-                    end
                     if data and data.finalUrl then
                         table.insert(fetchQueue, index,
                             { url = data.finalUrl, handler = handler, priority = priority })
@@ -154,14 +145,12 @@ end
 function Network.cancel(url)
     for _, w in ipairs(activeWorkers) do
         if w.url == url then
-            print("Canceling active fetch for URL:", url)
             w.connection:close()
             return
         end
     end
     for i, item in ipairs(fetchQueue) do
         if item.url == url then
-            print("Canceling queued fetch for URL:", url)
             table.remove(fetchQueue, i)
             return
         end

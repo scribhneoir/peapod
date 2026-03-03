@@ -46,7 +46,6 @@ function Mp3Handle:update()
 end
 
 function Mp3Handle.new(path)
-    print("Creating Mp3Handle for file:", path)
     local self = setmetatable({}, { __index = Mp3Handle })
     self.filePath = path
     self.player = sound.fileplayer.new()
