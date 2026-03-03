@@ -63,12 +63,15 @@ function XmlHandle:parse(data)
     self.parser:parse(data)
 end
 
-local function parseNow(data, tag)
-    local tree = xmlTree:new()
-    local parser = xml2lua.parser(tree)
-    parser:parse(data)
-    return tree.root[tag]
-end
+-- local function parseNow(data, tag)
+--     local tree = xmlTree:new()
+--     local parser = xml2lua.parser(tree)
+--     parser:parse(data)
+--     for k, v in pairs(tree.root) do
+--         print(k, v)
+--     end
+--     return tree.root
+-- end
 
 function XmlHandle.new(headerTagMap, itemTag, itemSubTagMap, path, itemPath, url)
     local self = setmetatable({}, { __index = XmlHandle })
@@ -79,6 +82,7 @@ function XmlHandle.new(headerTagMap, itemTag, itemSubTagMap, path, itemPath, url
     self.itemSubTagMap = itemSubTagMap
     self.path = path
     self.itemPath = itemPath or "items"
+    self.foundAllHeaderTags = false
     self.buffer = ""
     self.index = 1
     self.oldData = false
@@ -104,28 +108,31 @@ function XmlHandle:onData(data)
 
     if not self.foundAllHeaderTags then
         local allFound = true
+        local new = false
         for assignment, tag in pairs(self.headerTagMap) do
             if not self.headerData[assignment] then
-                local index = self.buffer:find("<" .. tag .. ">(.-)</" .. tag .. ">")
-                if not index then
-                    allFound = false
-                    break
+                local tagInfo = self.buffer:match("<" .. tag .. ">(.-)</" .. tag .. ">")
+                if tagInfo ~= nil and #tagInfo > 0 then
+                    new = true
+                    tagInfo = tagInfo:gsub("<" .. tag .. ">", "")
+                    tagInfo = tagInfo:gsub("</" .. tag .. ">", "")
+                    self.headerData[assignment] = tagInfo
                 else
-                    self.headerData[assignment] = parseNow(self.buffer:match("<" .. tag .. ">(.-)</" .. tag .. ">"), tag)
+                    allFound = false
                 end
             end
         end
-        if allFound then
+        if new then
             store.write(self.headerData, self.path .. "data")
+        end
+        if allFound then
             self.foundAllHeaderTags = true
         end
     end
     local itemStart, itemEnd = string.find(self.buffer, "<" .. self.itemTag .. ">(.-)</" .. self.itemTag .. ">")
     while itemStart do
         local itemXml = string.sub(self.buffer, itemStart, itemEnd)
-        print("Parsed XML:", itemXml:len())
         self.buffer = string.sub(self.buffer, itemEnd + 1)
-        print("Remaining buffer:", self.buffer:len())
         local xmlPath = self.path .. "/" .. self.itemPath .. "/xml/" .. self.index .. ".xml"
         local handle = file.open(xmlPath, file.kFileWrite)
         assert(handle,
