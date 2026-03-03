@@ -150,8 +150,13 @@ function Discover.AButtonUp()
     local selectedRow = listview:getSelectedRow()
     if titles[selectedRow] then
         Discover.switchScene("EPISODES",
-            { id = ids[selectedRow], title = titles[selectedRow], subtitle = subtitles[selectedRow], feedUrl = feedUrls
-            [selectedRow] })
+            {
+                id = ids[selectedRow],
+                title = titles[selectedRow],
+                subtitle = subtitles[selectedRow],
+                feedUrl = feedUrls
+                    [selectedRow]
+            })
     elseif selectedRow == 0 then
         oldTerm = searchTerm
         searchTerm = ""
@@ -290,5 +295,13 @@ function Discover.update()
 end
 
 function Discover.init(_)
+    imagesInMemory = {}
+    titles = {}
+    subtitles = {}
+    ids = {}
+    feedUrls = {}
+    searchFileHandle = nil
+    oldTerm = nil
+    fetched = false
     listview.needsDisplay = true
 end

@@ -26,8 +26,10 @@ listview:setNumberOfRows(1)
 listview:setCellPadding(5, 5, 2, 2)
 
 function Episodes.init(args)
+    xmlHandle,
+    image,
+    mp3Handle = nil, nil, nil
     id, title, subtitle, feedUrl = args.id, args.title, args.subtitle, args.feedUrl
-    print(id)
     episodes = {}
     numberOfEpisodes = 5
     listview:setNumberOfRows(1)
@@ -100,19 +102,20 @@ function Episodes.update()
             image:draw(5, 5)
         elseif file.exists("cache/artwork/" .. id .. ".pdi") then
             gfx.setImageDrawMode(gfx.kDrawModeCopy)
-            local image = gfx.image.new("cache/artwork/" .. id .. ".pdi")
-            assert(image, "Failed to load image for " .. title)
-            image:setMaskImage(maskImage)
-            image = image
+            local imageFile = gfx.image.new("cache/artwork/" .. id .. ".pdi")
+            assert(imageFile, "Failed to load image for " .. title)
+            imageFile:setMaskImage(maskImage)
+            image = imageFile
             image:draw(5, 5)
         else
             gfx.fillRoundRect(5, 5, 60, 60, 3)
         end
         gfx.setFont(titleFont)
-        gfx.drawText(title, 70, 5, 380)
+        local titleHeight = not (subtitle and subtitle ~= "") and 48 or 16
+        gfx.drawText(title, 70, 5, 330, titleHeight)
         if subtitle and subtitle ~= "" then
             gfx.setFont(subfont)
-            gfx.drawText(subtitle, 70, 22, 380)
+            gfx.drawText(subtitle, 70, 22, 330, 32)
         end
         listview:drawInRect(0, 70, 400, 170)
     end
