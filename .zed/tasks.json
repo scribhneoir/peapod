@@ -1,0 +1,17 @@
+[
+  {
+    "label": "Playdate: Build",
+    "command": "$PLAYDATE_SDK_PATH/bin/pdc src dist/main.pdx",
+    "cwd": "$ZED_WORKTREE_ROOT"
+  },
+  {
+    "label": "Playdate: Run in Simulator",
+    "command": ".zed/launch-sim.sh dist/main.pdx",
+    "cwd": "$ZED_WORKTREE_ROOT"
+  },
+  {
+    "label": "Playdate: Build & Run",
+    "command": "$PLAYDATE_SDK_PATH/bin/pdc src dist/main.pdx && .zed/launch-sim.sh dist/main.pdx",
+    "cwd": "$ZED_WORKTREE_ROOT"
+  }
+]
