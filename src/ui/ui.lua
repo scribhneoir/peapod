@@ -16,13 +16,14 @@ local scenes <const> = {
 }
 
 local currentScene = scenes.DISCOVER
--- currentScene.init({
---     id = "1415546090",
---     title = "Into the Aether",
---     subtitle = "A lowkey videogame podcast",
---     feedUrl =
---     "https://feeds.transistor.fm/intotheaether"
--- })
+currentScene.init({
+    searchTerm = "into the aether"
+    -- id = "1415546090",
+    -- title = "Into the Aether",
+    -- subtitle = "A lowkey videogame podcast",
+    -- feedUrl =
+    -- "https://feeds.transistor.fm/intotheaether"
+})
 local nextScene = nil
 
 local function switchScene(scene, args)
@@ -41,8 +42,12 @@ function UI.update()
     currentScene.update()
     if nextScene then
         --TODO: add transition logic here
+        local oldScene = currentScene
         currentScene = nextScene
         nextScene = nil
+        oldScene.kill()
+        oldScene = nil
+        collectgarbage()
     end
 end
 

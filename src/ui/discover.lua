@@ -28,60 +28,18 @@ local titles = {}
 local subtitles = {}
 local ids = {}
 local feedUrls = {}
-local searchTerm = "into the aether";
+local searchTerm = nil
 local searchFileHandle
 local oldTerm = nil
 local fetched = false
-
-local listview = playdate.ui.gridview.new(0, 70)
-
+local listview
 local NUMBER_OF_RESULTS = 10
-
-local function parseDiscoverData()
-    local data = searchFileHandle:read()
-    for _, value in pairs(data.results) do
-        local title, subtitle = parseSubtitle(value.trackName)
-        local artworkUrl = value.artworkUrl60
-        local feedUrl = value.feedUrl
-        local id = value.trackId
-        local artworkPath = "cache/artwork/" .. id .. ".pdi"
-        local artworkFP = FileHandle.new(artworkPath)
-        artworkFP:setOnFinish(function()
-            listview.needsDisplay = true
-        end)
-        if not file.exists(artworkPath) then
-            Network.fetch("https://pdi-image-converter.scribhneoir.workers.dev/?url=" .. artworkUrl,
-                artworkFP)
-        end
-        titles[#titles + 1] = title
-        subtitles[#subtitles + 1] = subtitle
-        feedUrls[#feedUrls + 1] = feedUrl
-        ids[#ids + 1] = id
-    end
-    fetched = true
-end
-
-local function fetchDiscoverData()
-    fetched = false
-    searchFileHandle = FileHandle.new("cache/search/" .. searchTerm .. ".json")
-    if not searchFileHandle:exists() then --todo: check if cached file modtime is recent enough
-        local url = "https://itunes.apple.com/search?media=podcast&term=" ..
-            searchTerm:gsub(" ", "+") .. "&limit=" .. NUMBER_OF_RESULTS
-        Network.fetch(url, searchFileHandle)
-    else
-        searchFileHandle:setComplete(true)
-    end
-end
 
 local subfont = gfx.font.new('assets/fonts/Nontendo/Nontendo-Light')
 local titleFont = gfx.font.new('assets/fonts/Quickboot/Quickboot')
 titleFont:setTracking(8)
 
-
-listview:setNumberOfRows(NUMBER_OF_RESULTS)
-listview:setCellPadding(5, 5, 2, 2)
-
-function listview:drawCell(_, row, _, selected, x, y, width, height)
+local function drawCell(_self, _section, row, _col, selected, x, y, width, height)
     if titles[row] then
         local title = titles[row]
         local subtitle = subtitles[row]
@@ -118,6 +76,66 @@ function listview:drawCell(_, row, _, selected, x, y, width, height)
         end
     else
         gfx.drawRoundRect(x, y, width, height, 4)
+    end
+end
+
+local function cleanSearch()
+    imagesInMemory = {}
+    titles = {}
+    subtitles = {}
+    ids = {}
+    feedUrls = {}
+    searchFileHandle = nil
+    oldTerm = nil
+    fetched = false
+    listview = nil
+end
+
+function Discover.init(args)
+    if args then searchTerm = args.searchTerm or searchTerm end
+    listview = playdate.ui.gridview.new(0, 70)
+    listview:setNumberOfRows(NUMBER_OF_RESULTS)
+    listview:setCellPadding(5, 5, 2, 2)
+    listview.drawCell = drawCell
+end
+
+function Discover.kill()
+    cleanSearch()
+end
+
+local function parseDiscoverData()
+    local data = searchFileHandle:read()
+    for _, value in pairs(data.results) do
+        local title, subtitle = parseSubtitle(value.trackName)
+        local artworkUrl = value.artworkUrl60
+        local feedUrl = value.feedUrl
+        local id = value.trackId
+        local artworkPath = "cache/artwork/" .. id .. ".pdi"
+        local artworkFP = FileHandle.new(artworkPath)
+        artworkFP:setOnFinish(function()
+            listview.needsDisplay = true
+        end)
+        if not file.exists(artworkPath) then
+            Network.fetch("https://pdi-image-converter.scribhneoir.workers.dev/?url=" .. artworkUrl,
+                artworkFP)
+        end
+        titles[#titles + 1] = title
+        subtitles[#subtitles + 1] = subtitle
+        feedUrls[#feedUrls + 1] = feedUrl
+        ids[#ids + 1] = id
+    end
+    fetched = true
+end
+
+local function fetchDiscoverData()
+    fetched = false
+    searchFileHandle = FileHandle.new("cache/search/" .. searchTerm .. ".json")
+    if not searchFileHandle:exists() then --todo: check if cached file modtime is recent enough
+        local url = "https://itunes.apple.com/search?media=podcast&term=" ..
+            searchTerm:gsub(" ", "+") .. "&limit=" .. NUMBER_OF_RESULTS
+        Network.fetch(url, searchFileHandle)
+    else
+        searchFileHandle:setComplete(true)
     end
 end
 
@@ -212,14 +230,9 @@ keyboard.keyboardWillHideCallback = function(ok)
     if not ok then
         searchTerm = oldTerm or searchTerm
     elseif searchTerm ~= "" then
+        cleanSearch()
         searchTerm:gsub('^%s*(.-)%s*$', '%1') -- trim whitespace
-        oldTerm = nil
-        listview:setSelectedRow(0)
-        titles = {}
-        subtitles = {}
-        feedUrls = {}
-        imagesInMemory = {}
-        searchFileHandle = nil
+        Discover.init()
     end
     playdate.display.setRefreshRate(0)
 end
@@ -301,16 +314,4 @@ function Discover.update()
         parseDiscoverData()
     end
     renderData()
-end
-
-function Discover.init(_)
-    imagesInMemory = {}
-    titles = {}
-    subtitles = {}
-    ids = {}
-    feedUrls = {}
-    searchFileHandle = nil
-    oldTerm = nil
-    fetched = false
-    listview.needsDisplay = true
 end

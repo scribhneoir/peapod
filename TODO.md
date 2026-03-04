@@ -1,7 +1,6 @@
 - [] Better input handling
   - Hold directional buttons
 - [] Store xml feed completion in the json props for the show so that we only hault early if everything in the feed has been parsed once
-- [] Mp3Handle should be a global singleton
 - [] Fix Mp3 Resume
 - [x] SoundFx global
 - [] Player global
@@ -13,4 +12,4 @@
 - [] Library view
 - [x] Network update on timer rather than on frame
 - [] resume downloads if file already exists
--
+- [x] cleanup scene data after switch

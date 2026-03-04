@@ -21,38 +21,15 @@ gfx.setColor(gfx.kColorWhite)
 gfx.fillRoundRect(0, 0, 60, 60, 3)
 gfx.unlockFocus()
 
-local listview = playdate.ui.gridview.new(0, 35)
-listview:setNumberOfRows(1)
-listview:setCellPadding(5, 5, 2, 2)
+local listview
 
-function Episodes.init(args)
-    xmlHandle,
-    image,
-    mp3Handle = nil, nil, nil
-    id, title, subtitle, feedUrl = args.id, args.title, args.subtitle, args.feedUrl
-    episodes = {}
-    numberOfEpisodes = 5
-    listview:setNumberOfRows(1)
-    xmlHandle = XmlHandle.new({
-        description = "description",
-        link = "link",
-    }, "item", {
-        title = "title",
-        description = "description",
-        pubDate = "pubDate",
-        enclosure = "enclosure._attr",
-        episode = "itunes:episode",
-        season = "itunes:season",
-    }, "shows/" .. id .. "/", "episodes", feedUrl)
-    Network.fetch(feedUrl, xmlHandle)
-end
 
 local titleFont = gfx.font.new('assets/fonts/Quickboot/Quickboot')
 titleFont:setTracking(8)
 
 local subfont = gfx.font.new('assets/fonts/Nontendo/Nontendo-Light')
 
-function listview:drawCell(_, row, _, selected, x, y, width, height)
+local function drawCell(_self, _section, row, _col, selected, x, y, width, height)
     if episodes and episodes[row] then
         local episode = episodes[row]
         local title = episode.title or "No title"
@@ -71,6 +48,38 @@ function listview:drawCell(_, row, _, selected, x, y, width, height)
         gfx.setFont(subfont)
         gfx.drawText("Loading...", x + 6, y + 6)
     end
+end
+
+function Episodes.init(args)
+    id, title, subtitle, feedUrl = args.id, args.title, args.subtitle, args.feedUrl
+    episodes = {}
+    numberOfEpisodes = 5
+    listview = playdate.ui.gridview.new(0, 35)
+    listview:setNumberOfRows(1)
+    listview:setCellPadding(5, 5, 2, 2)
+    listview.drawCell = drawCell
+
+    xmlHandle = XmlHandle.new({
+        description = "description",
+        link = "link",
+    }, "item", {
+        title = "title",
+        description = "description",
+        pubDate = "pubDate",
+        enclosure = "enclosure._attr",
+        episode = "itunes:episode",
+        season = "itunes:season",
+    }, "shows/" .. id .. "/", "episodes", feedUrl)
+    Network.fetch(feedUrl, xmlHandle)
+end
+
+function Episodes.kill()
+    Network.cancel(feedUrl)
+    listview = nil
+    episodes = {}
+    xmlHandle,
+    image,
+    mp3Handle = nil, nil, nil
 end
 
 local function getEpisodes()
@@ -164,16 +173,7 @@ end
 
 function Episodes.BButtonUp()
     Episodes.switchScene("DISCOVER")
-    Network.cancel(feedUrl)
-    -- todo: cancelling early will keep old episodes from ever being fetched,
-    -- due to the xml handler prematurely haulting download / parse once it runs into redundant data
-    listview:setNumberOfRows(1)
-    episodes = {}
-
-    xmlHandle = nil
-    image = nil
     Sound.play("click")
-    collectgarbage()
 end
 
 local clickDegrees <const> = 360 / 15
