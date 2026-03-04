@@ -24,6 +24,11 @@ playdate.display.setRefreshRate(0) -- uncapped framerate
 
 local lastFrameTime = getCurrentTimeMilliseconds()
 DeltaTime = 0
+local click = playdate.sound.sampleplayer.new("assets/sound/click")
+PlayClick = function()
+    if click:isPlaying() then return end
+    click:play()
+end
 
 function playdate.update()
     timer.updateTimers()
@@ -33,7 +38,6 @@ function playdate.update()
     DeltaTime = (currentFrameTime - lastFrameTime) / 1000
     lastFrameTime = currentFrameTime
 
-    network.update()
     ui.update()
     playdate.drawFPS(385, 228)
 end

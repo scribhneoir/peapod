@@ -1,4 +1,5 @@
 local net <const> = playdate.network
+local timer <const> = playdate.timer
 
 local function parseURL(url)
     local secure = string.match(url, "^https://") ~= nil
@@ -96,7 +97,7 @@ local function handleQueue()
     -- print("Active workers:", #activeWorkers, "Queue length:", #fetchQueue)
 end
 
-function Network.update()
+local function update()
     if not network_permission then
         network_permission = net.http.requestAccess(nil)
         if network_permission then
@@ -108,6 +109,8 @@ function Network.update()
         handleQueue()
     end
 end
+
+local updateTimer = timer.keyRepeatTimer(function() update() end, 1000)
 
 function Network.fetch(url, handler, priority, redirect)
     priority = priority or 1
