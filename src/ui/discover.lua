@@ -33,6 +33,8 @@ local searchFileHandle
 local oldTerm = nil
 local fetched = false
 
+local listview = playdate.ui.gridview.new(0, 70)
+
 local NUMBER_OF_RESULTS = 10
 
 local function parseDiscoverData()
@@ -43,9 +45,13 @@ local function parseDiscoverData()
         local feedUrl = value.feedUrl
         local id = value.trackId
         local artworkPath = "cache/artwork/" .. id .. ".pdi"
+        local artworkFP = FileHandle.new(artworkPath)
+        artworkFP:setOnFinish(function()
+            listview.needsDisplay = true
+        end)
         if not file.exists(artworkPath) then
             Network.fetch("https://pdi-image-converter.scribhneoir.workers.dev/?url=" .. artworkUrl,
-                FileHandle.new(artworkPath))
+                artworkFP)
         end
         titles[#titles + 1] = title
         subtitles[#subtitles + 1] = subtitle
@@ -71,7 +77,7 @@ local subfont = gfx.font.new('assets/fonts/Nontendo/Nontendo-Light')
 local titleFont = gfx.font.new('assets/fonts/Quickboot/Quickboot')
 titleFont:setTracking(8)
 
-local listview = playdate.ui.gridview.new(0, 70)
+
 listview:setNumberOfRows(NUMBER_OF_RESULTS)
 listview:setCellPadding(5, 5, 2, 2)
 
@@ -119,6 +125,7 @@ local function handleUp()
     if keyboard.isVisible() then
         return
     end
+    PlayClick()
     if listview:getSelectedRow() == 0 then
         return
     elseif listview:getSelectedRow() == 1 then
@@ -132,6 +139,7 @@ local function handleDown()
     if keyboard.isVisible() then
         return
     end
+    PlayClick()
     listview:selectNextRow(false)
 end
 

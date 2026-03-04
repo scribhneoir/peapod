@@ -67,11 +67,18 @@ function FileHandle:onData(data)
     end
 end
 
+function FileHandle:setOnFinish(fun)
+    self.onFinishCallback = fun
+end
+
 function FileHandle:onFinish()
     self.fileHandle:close()
     if self.tempPath then
         file.delete(self.filepath)
         file.rename(self.tempPath, self.filepath)
+    end
+    if self.onFinishCallback then
+        self.onFinishCallback()
     end
     self.complete = true
 end
@@ -86,7 +93,6 @@ end
 
 function FileHandle:setContentLength(length)
     self.contentLength = length
-    print(self:getDataProgress())
 end
 
 function FileHandle:getSize()
