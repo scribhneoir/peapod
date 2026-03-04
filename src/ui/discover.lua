@@ -125,7 +125,7 @@ local function handleUp()
     if keyboard.isVisible() then
         return
     end
-    PlayClick()
+    Sound.play("click")
     if listview:getSelectedRow() == 0 then
         return
     elseif listview:getSelectedRow() == 1 then
@@ -139,7 +139,7 @@ local function handleDown()
     if keyboard.isVisible() then
         return
     end
-    PlayClick()
+    Sound.play("click")
     listview:selectNextRow(false)
 end
 
@@ -172,6 +172,7 @@ function Discover.AButtonUp()
         keyboard.show()
         keyboard.text = ""
     end
+    Sound.play("click")
 end
 
 local clickDegrees <const> = 360 / 15

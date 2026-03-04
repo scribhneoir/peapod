@@ -127,6 +127,7 @@ end
 
 local function handleUp()
     listview:selectPreviousRow(false)
+    Sound.play("click")
 end
 
 local function handleDown()
@@ -137,6 +138,7 @@ local function handleDown()
         numberOfEpisodes = numberOfEpisodes + 5
     end
     listview:selectNextRow(false)
+    Sound.play("click")
 end
 
 function Episodes.upButtonUp()
@@ -156,6 +158,7 @@ function Episodes.AButtonUp()
         local url = episode.enclosure.url
         mp3Handle = Mp3Handle.new("shows/" .. id .. "/" .. StripString(episode.title) .. ".mp3")
         Network.fetch(url, mp3Handle, 10, true)
+        Sound.play("click")
     end
 end
 
@@ -169,6 +172,7 @@ function Episodes.BButtonUp()
 
     xmlHandle = nil
     image = nil
+    Sound.play("click")
     collectgarbage()
 end
 
